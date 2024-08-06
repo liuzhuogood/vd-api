@@ -7,4 +7,6 @@ pydantic~=2.5.3
 flask~=3.0.0
 sqlalchemy~=2.0.27
 # DrissionPage~=4.0.4.23
-schedule~=1.2.2
+schedule~=1.2.1
+click~=8.1.7
+urllib3~=2.2.2
