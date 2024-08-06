@@ -1,0 +1,10 @@
+db_hammer
+requests~=2.31.0
+loguru~=0.7.2
+python-socketio~=5.11.0
+cachetools~=5.3.3
+pydantic~=2.5.3
+flask~=3.0.0
+sqlalchemy~=2.0.27
+# DrissionPage~=4.0.4.23
+schedule~=1.2.2

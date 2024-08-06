@@ -1,0 +1,45 @@
+[
+  {
+    "key": "cjhwba",
+    "name": "华为吧",
+    "api": "https://cjhwba.com/api.php/provide/vod",
+    "playUrl": "https://player.hw8.lol/player?url=",
+    "type": "json"
+  },
+  {
+    "key": "360zy",
+    "name": "360资源",
+    "api": "https://360zy.com/api.php/provide/vod",
+    "playUrl": "https://www.360jiexi.com/player/?url=",
+    "type": "json"
+  },
+  {
+    "key": "wolongzy",
+    "name": "卧龙资源站资源",
+    "api": "https://collect.wolongzy.cc/api.php/provide/vod/",
+    "playUrl": "https://jx.wolongzywcdn.com:65/m3u8.php?url=",
+    "type": "json"
+  },
+  {
+    "key": "moduzy",
+    "name": "魔都资源网",
+    "api": "https://caiji.moduapi.cc/api.php/provide/vod",
+    "playUrl": "https://jiexi.modujx01.com/?url=",
+    "type": "json"
+  },
+  {
+    "key": "ikunzyapi",
+    "name": "iKun资源",
+    "api": "https://ikunzyapi.com/api.php/provide/vod",
+    "playUrl": "https://www.ikdmjx.com/?url=",
+    "type": "json"
+  },
+  {
+    "key": "jszyapi",
+    "name": "极速资源",
+    "api": "https://jszyapi.com/api.php/provide/vod/from/jsm3u8/at/json",
+    "playUrl": "https://jsjiexi.com/play/?url=",
+    "type": "json"
+  }
+
+]
