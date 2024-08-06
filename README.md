@@ -1,6 +1,6 @@
 # vdd-视频下载
 
-[vdd](https://github.com)
+[vdd](https://github.com/liuzhuogood/vd-api.git)
 本项目为自娱学习性质，不能用于商业活动，所有资源来自三方接口，作者不承担任何责任。
 
 * 请注意资源的合法性，如有侵权尽快删除，勿相信视频中任何广告！
