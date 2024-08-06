@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  vdd:
+    image: liuzhuogood/vdd:latest
+    container_name: vdd
+    ports:
+      - "18001:18001"
+    volumes:
+      # 配置
+      - /home/liuzhuo/data/vdd/config:/app/config
+      # 下载默认目录
+      - /mnt/sdb2/vdd:/app/data
+    restart: always
