@@ -11,11 +11,11 @@ class InvokeAPI(BaseInvoke):
         super().__init__()
         self.api = api
 
-    @retry(Exception, tries=3, delay=1)
+    @retry(Exception, tries=2, delay=1)
     def search(self, wd: str) -> VodResult:
-        vr = VodResult(api_name=self.api["name"], play_url=self.api["playUrl"])
+        vr = VodResult(api_name=self.api["name"], play_url=self.api.get("playUrl", None))
         try:
-            res = self.session.get(self.api["api"], timeout=(5, 10), params={
+            res = self.session.get(self.api["api"], timeout=(3, 10), params={
                 "wd": wd,
                 "ac": "detail"
             })
@@ -27,9 +27,9 @@ class InvokeAPI(BaseInvoke):
                 vm = VodModel(**li)
                 vm.url_details = self.parse_url_details(vm.vod_play_url)
                 vr.vms.append(vm)
-                logger.info(vm)
+                logger.info(f" {vr.api_name} ---> {vm.vod_play_url}")
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(f"{vr.api_name} 解析异常:" + str(e))
         return vr
 
     def parse_url_details(self, detail_url):

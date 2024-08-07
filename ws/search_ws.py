@@ -16,13 +16,14 @@ from base.vod_model import VodModel, VodDetailModel
 
 lock = threading.Lock()
 cwd = os.path.dirname(__file__)
-executor = ThreadPoolExecutor(max_workers=10)
+executor = ThreadPoolExecutor(max_workers=50)
 config = Config()
 
 
 class SearchWS(socketio.Namespace):
 
     def api_invoke(self, api, wd):
+        logger.info("搜索:{}".format(api["name"]))
         invoke = InvokeAPI(api=api)
         result = invoke.search(wd)
         # 通知前端
