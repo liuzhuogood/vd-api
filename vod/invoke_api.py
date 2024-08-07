@@ -36,7 +36,12 @@ class InvokeAPI(BaseInvoke):
         details = detail_url.split("#")
         rs = []
         for d in details:
-            title, url = d.split("$")
+            try:
+                dd = d.split("$")
+                title = dd[0]
+                url = dd[1]
+            except Exception as e:
+                continue
             rs.append(VodDetailModel(title=title, url=url))
         return rs
 

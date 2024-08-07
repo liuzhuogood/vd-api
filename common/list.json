@@ -40,6 +40,80 @@
     "api": "https://jszyapi.com/api.php/provide/vod/from/jsm3u8/at/json",
     "playUrl": "https://jsjiexi.com/play/?url=",
     "type": "json"
+  },
+  {
+    "key": "heimuer",
+    "name": "黑木耳",
+    "api": "https://json.heimuer.xyz/api.php/provide/vod/",
+    "playUrl": "https://player.heimuer.tv/index.html?url=",
+    "type": "json"
+  },
+  {
+    "key": "wolongzy",
+    "name": "卧龙资源",
+    "api": "https://collect.wolongzy.cc/api.php/provide/vod/",
+    "playUrl": "https://jsjiexi.com/play/?url=",
+    "type": "json"
+  },
+  {
+    "name": "天空资源",
+    "api": "https://api.tiankongapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "飞速资源",
+    "api": "https://www.feisuzyapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "红牛资源",
+    "api": "https://www.hongniuzy2.com/api.php/provide/vod/"
+  },
+  {
+    "name": "非凡资源",
+    "api": "https://cj.ffzyapi.com/api.php/provide/vod/",
+    "playUrl": "https://svip.ffzyplay.com/?url="
+  },
+  {
+    "name": "量子资源",
+    "api": "https://cj.lziapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "光速资源",
+    "api": "https://api.guangsuapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "ck资源",
+    "api": "https://ckzy.me/api.php/provide/vod/"
+  },
+  {
+    "name": "快播资源",
+    "api": "https://caiji.kczyapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "U酷资源",
+    "api": "https://api.ukuapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "闪电资源",
+    "api": "https://sdzyapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "无尽资源",
+    "api": "https://api.wujinapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "火狐资源",
+    "api": "https://hhzyapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "虎牙资源",
+    "api": "https://www.huyaapi.com/api.php/provide/vod/"
+  },
+  {
+    "name": "樱花资源",
+    "api": "https://m3u8.apiyhzy.com/api.php/provide/vod/"
+  },
+  {
+    "name": "四圈资源",
+    "api": "https://pg.fenwe078.cf/api.php/provide/vod/"
   }
-
 ]
