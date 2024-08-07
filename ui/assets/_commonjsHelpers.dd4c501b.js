@@ -1,1 +1,0 @@
-var t=(e,n)=>{const o=e.__vccOpts||e;for(const[l,f]of n)o[l]=f;return o},a=typeof globalThis!="undefined"?globalThis:typeof window!="undefined"?window:typeof global!="undefined"?global:typeof self!="undefined"?self:{};export{t as _,a as c};
