@@ -49,7 +49,7 @@ class SearchWS(socketio.Namespace):
             if detail.checked:
                 download_name = vod.vod_name + "-" + detail.title
                 download_path = Config().download_root_path()
-                download_path = os.path.join(download_path, vod.vod_name, download_name)
+                download_path = os.path.join(download_path, vod.vod_name, detail.title)
 
                 rows.append(DownloadDO(
                     vod_model=vod.model_dump(),
