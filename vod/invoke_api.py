@@ -1,4 +1,6 @@
 from loguru import logger
+from retry import retry
+
 from base.base_invoke import BaseInvoke
 from base.vod_model import *
 
@@ -9,6 +11,7 @@ class InvokeAPI(BaseInvoke):
         super().__init__()
         self.api = api
 
+    @retry(Exception, tries=3, delay=1)
     def search(self, wd: str) -> VodResult:
         vr = VodResult(api_name=self.api["name"], play_url=self.api["playUrl"])
         try:
