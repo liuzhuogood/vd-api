@@ -39,11 +39,11 @@ class DownloadWS(socketio.Namespace):
                 # 执行删除操作
                 deleted_count = session.query(DownloadDO).filter(DownloadDO.state == DownloadState.FAILED).delete()
                 session.commit()
-        if tag == "Downloading":
+        if tag == "None":
             with DbSession() as session:
                 # 执行删除操作
                 ds = session.query(DownloadDO).filter(
-                    DownloadDO.state.in_([DownloadState.DOWNLOADING, DownloadState.UNDOWNLOAD])).all()
+                    DownloadDO.state == DownloadState.UNDOWNLOAD).all()
                 ds_copy = ds.copy()
                 for d in ds:
                     session.delete(d)
