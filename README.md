@@ -12,7 +12,9 @@
 ##### 运行
 
 ```bash
-docker run -d --name vdd -p 18001:18001 -v /opt/vdd/config/vod.db:/app/config/vod.db -v /opt/vdd/data:/app/data liuzhuogood/vdd:latest
+mkdir -p /opt/vdd/config
+mkdir -p /opt/vdd/data
+docker run -d --name vdd -p 18001:18001 -v /opt/vdd/config:/app/config -v /opt/vdd/data:/app/data liuzhuogood/vdd:latest
 ```
 
 ##### 停止
@@ -34,7 +36,7 @@ services:
       - "18001:18001"
     volumes:
       # 配置
-      - /opt/vdd/config/vod.db:/app/config/vod.db
+      - /opt/vdd/config:/app/config
       # 下载默认目录
       - /opt/vdd/data:/app/data
     restart: always

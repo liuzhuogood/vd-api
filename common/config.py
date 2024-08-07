@@ -3,6 +3,7 @@ import os
 
 root_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 config_path = os.path.join(root_dir, "config", 'config.json')
+default_vod_list_path = os.path.join(root_dir, "common", 'list.json')
 vod_list_path = os.path.join(root_dir, "config", 'list.json')
 sqlite_path = f"sqlite:///{os.path.join(root_dir, 'config', 'vod.db')}"
 default_data_path = os.path.join(root_dir, "data")
@@ -61,5 +62,8 @@ class Config:
     @property
     def vod_api_list(self) -> list:
         if not self.VOD_LIST:
-            self.VOD_LIST = json.loads(open(vod_list_path, mode='r').read())
+            if os.path.exists(vod_list_path):
+                self.VOD_LIST = json.loads(open(vod_list_path, mode='r').read())
+            else:
+                self.VOD_LIST = json.loads(open(default_vod_list_path, mode='r').read())
         return self.VOD_LIST
