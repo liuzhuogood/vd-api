@@ -8,7 +8,7 @@ services:
       - "18001:18001"
     volumes:
       # 配置
-      - /home/liuzhuo/data/vdd/config:/app/config
+      - /home/liuzhuo/data/vdd/config/vdd.db:/app/config/vdd.db
       # 下载默认目录
       - /mnt/sdb2/vdd:/app/data
     restart: always
