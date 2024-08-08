@@ -3,6 +3,7 @@ import logging
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -29,13 +30,14 @@ class RetryException(Exception):
 class CallbackState:
     START = 0
     DOWNLOADING = 10
-    PAUSED = 11
+    MERGEING = 15
     FINISH = 20
     FAILED = 30
 
 
 class CallbackData:
-    def __init__(self, status: int, msg: str, progress: float, speed: float, speed_str: str, obj):
+    def __init__(self, status: int = 0, msg: str = "", progress: float = 0, speed: float = 0, speed_str: str = "--",
+                 obj=None):
         self.status = status
         self.msg = msg
         self.progress = progress
@@ -49,14 +51,12 @@ class M3u8Downloader:
     def __init__(self, name,
                  url,
                  dist_path,
-                 dist_m3u8_server='http://127.0.0.1:18001',
                  max_workers=20,
                  base64_key=None,
                  callback=None,
                  callback_obj=None,
                  stop_event=None):
         self._url = url
-        self.dist_m3u8_server = dist_m3u8_server
         self._name = name
         self._max_workers = max_workers
         self._file_path = os.path.join(dist_path, self._name)
@@ -96,16 +96,31 @@ class M3u8Downloader:
             try:
                 if self.callback:
                     self.callback(CallbackData(
-                        status=CallbackState.FINISH,
-                        msg="下载完成", progress=100,
+                        status=CallbackState.MERGEING,
+                        msg="视频转换中", progress=100,
                         speed=self.speed,
                         speed_str=self.speed_str,
                         obj=self.callback_obj))
                 logger.info(f"下载完成,开始合并")
                 self.output_mp4(self.dist_path, self._name)
+                self.clear()
+                if self.callback:
+                    self.callback(CallbackData(
+                        status=CallbackState.FINISH,
+                        msg="视频转换中", progress=100,
+                        speed=self.speed,
+                        speed_str=self.speed_str,
+                        obj=self.callback_obj))
 
             except Exception as e:
                 logging.exception(e)
+                if self.callback:
+                    self.callback(CallbackData(
+                        status=CallbackState.FAILED,
+                        msg="视频转换失败：" + str(e), progress=100,
+                        speed=self.speed,
+                        speed_str=self.speed_str,
+                        obj=self.callback_obj))
         else:
             if self.callback:
                 self.callback(CallbackData(
@@ -178,8 +193,9 @@ class M3u8Downloader:
                     self._ts_url_list.append(self._front_url + line)
                 else:
                     self._ts_url_list.append(self._url.rsplit("/", 1)[0] + '/' + line)
-                new_m3u8_str += self.dist_m3u8_server + "/" + (
-                        os.path.join(os.path.basename(self._file_path), str(next(ts))).rjust(5, '0') + '.ts\n')
+
+                new_m3u8_str += os.path.join(self._file_path, str(next(ts)).rjust(5, '0') + '.ts\n')
+
         self._ts_sum = next(ts)
         # 写入.m3u8文件
         with open(self._file_path + '.m3u8', "wb") as f:
@@ -265,29 +281,15 @@ class M3u8Downloader:
         out_name_outing = f"{os.path.join(dist_path, main_name, os.path.basename(self._file_path))}.outing.mp4"
         out_name = os.path.join(os.path.dirname(dist_path), mp4)
         os.makedirs(f"{os.path.join(dist_path, main_name)}/", exist_ok=True)
+        if os.path.exists(out_name_outing):
+            os.remove(out_name_outing)
         # cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8' -acodec \
         # copy -vcodec copy -f mp4 '{out_name}'"
-        cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c copy '{out_name_outing}'"
+        # cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v libx264  -threads 6 -preset ultrafast  '{out_name_outing}'"
+        cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v copy -preset ultrafast '{out_name_outing}'"
         logger.info(cmd)
         self.png_flag()
         os.system(cmd)
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                print(output.strip())
-                # 回调进度
-                last_line = output.strip().split('\r')[-1]
-                self.callback(CallbackData(
-                    status=CallbackState.DOWNLOADING,
-                    msg=last_line,
-                    progress=0,
-                    speed=0,
-                    speed_str="--",
-                    obj=self.callback_obj))
-
         if not os.path.exists(out_name_outing):
             raise Exception("not foumd mp4")
         cmd = f"mv '{out_name_outing}' '{out_name}'"
@@ -310,3 +312,8 @@ class M3u8Downloader:
         with open(first_ts, mode="rb+") as f:
             f.write(first_ts_data[0:1] + first_ts_data[4:])
         print("png delete")
+
+    def clear(self):
+        path = os.path.dirname(self._file_path)
+        if os.path.exists(path):
+            shutil.rmtree(path, ignore_errors=True)

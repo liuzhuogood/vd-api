@@ -10,6 +10,7 @@ class DownloadState:
     UNDOWNLOAD = 0
     DOWNLOADING = 10
     PAUSED = 11
+    MERGEING = 15
     SUCCESS = 20
     FAILED = 30
 

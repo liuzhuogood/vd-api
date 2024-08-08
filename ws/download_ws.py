@@ -7,6 +7,7 @@ from common.response import success
 from base.db import DbSession
 from base.db_do import DownloadDO, DownloadState
 from download.download_server import DownloadServer
+from download.m3u8_downloader import CallbackData
 
 
 class DownloadWS(socketio.Namespace):
@@ -53,10 +54,11 @@ class DownloadWS(socketio.Namespace):
         self.emit("message", data=success(data=data, msg=f"清除{deleted_count}条记录"))
         self.emit("list", data=success())
 
-    def on_callback(self, sid, data):
+    def on_callback(self, cd: CallbackData):
         """其实是来自下载的线程回调"""
         try:
             # 通知页面
+            data = {**cd.obj.to_dict(), "speed_str": cd.speed_str, "speed": cd.speed}
             self.emit("download_event", data=success(data=data))
         except Exception as e:
             logger.error(e)

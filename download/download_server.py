@@ -43,7 +43,7 @@ class DownloadServer(object):
             logger.info("提交任务: " + do.download_name)
 
             do.state = DownloadState.DOWNLOADING
-            self.update_state(do)
+            self.update_state(CallbackData(obj=do))
             detail: VodDetailModel = do.vod_detail
             logger.info(f"开始下载: {do.download_name}")
             stop_event = threading.Event()
@@ -64,7 +64,7 @@ class DownloadServer(object):
             logger.exception(e)
             do.state = DownloadState.FAILED
             do.error = str(e)
-            self.update_state(do)
+            self.update_state(CallbackData(obj=do))
         finally:
             self._list.remove(do)
 
@@ -93,6 +93,10 @@ class DownloadServer(object):
             # cd.obj.state = DownloadState.FAILED
             cd.obj.state = DownloadState.UNDOWNLOAD
             cd.obj.error = cd.msg
+        if cd.status == CallbackState.MERGEING:
+            logger.error(cd.msg)
+            cd.obj.state = DownloadState.MERGEING
+            cd.obj.error = cd.msg
         if cd.status == CallbackState.FINISH:
             cd.obj.error = None
             cd.obj.progress = cd.progress
@@ -101,13 +105,14 @@ class DownloadServer(object):
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.DOWNLOADING
         if self.is_alive(cd.obj.download_id):
-            self.update_state(cd.obj)
+            self.update_state(cd)
         else:
             logger.info("任务不存在")
             return False
         return True
 
-    def update_state(self, do: DownloadDO):
+    def update_state(self, cd: CallbackData):
+        do = cd.obj
         update = {"state": do.state}
         if do.error:
             update["error"] = do.error
@@ -116,12 +121,14 @@ class DownloadServer(object):
         with (DbSession() as session):
             session.query(DownloadDO).filter(DownloadDO.download_id == do.download_id).update(update)
             session.commit()
-        self.emit_callback(do.download_id, do)
+        self.emit_callback(cd)
 
     def fail(self):
         """在程序重启时，就把下载中的数据重新下载"""
         with DbSession() as session:
             session.query(DownloadDO).filter(DownloadDO.state == DownloadState.DOWNLOADING).update(
+                {"state": DownloadState.UNDOWNLOAD})
+            session.query(DownloadDO).filter(DownloadDO.state == DownloadState.MERGEING).update(
                 {"state": DownloadState.UNDOWNLOAD})
             session.commit()
 
