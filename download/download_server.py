@@ -55,7 +55,7 @@ class DownloadServer(object):
                                 callback_obj=do,
                                 max_workers=20 // Config.download_thread(),
                                 stop_event=stop_event,
-                                cache_path=os.path.join(Config.download_root_path(), ".vdd_cache"))
+                                cache_path=os.path.join(Config.download_root_path(), ".vdd_cache", str(do.download_id)))
             dr.start()
             self._list.append({
                 "stop_event": stop_event,
