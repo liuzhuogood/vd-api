@@ -179,7 +179,7 @@ class M3u8Downloader:
                 if "EXT-X-KEY" in line and "URI=" in line:
                     if os.path.exists(os.path.join(self._file_path, 'key')):
                         continue
-                    key = self.download_key(line, 5)
+                    key = self.download_key(line)
                     if key:
                         new_m3u8_str += f'{key}\n'
                         continue
