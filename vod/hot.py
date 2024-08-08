@@ -32,6 +32,8 @@ class Hot(object):
     def save_hots(self, row):
         session = DbSession()
         try:
+            row.update_time = datetime.now()
+            row.create_time = datetime.now()
             session.merge(row)
             session.commit()
         except Exception as e:

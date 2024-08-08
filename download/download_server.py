@@ -1,16 +1,16 @@
-import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from download.m3u8_helper import M3u8Helper
 from loguru import logger
 
-from common.config import Config
 from base.db import DbSession
 from base.db_do import DownloadDO, DownloadState
-from download.m3u8_downloader import M3u8Downloader
 from base.thread_safe_list import ThreadSafeList
 from base.vod_model import VodModel, VodDetailModel
+from common.config import Config
+from download.m3u8_downloader import CallbackState, CallbackData, M3u8Downloader
 
 
 # noinspection PyTypeChecker
@@ -42,29 +42,27 @@ class DownloadServer(object):
     def submit(self, do: DownloadDO):
         try:
             logger.info("提交任务: " + do.download_name)
-            self._list.append(do)
+
             do.state = DownloadState.DOWNLOADING
             self.update_state(do)
             detail: VodDetailModel = do.vod_detail
-            if detail.checked:
-                logger.info(f"开始下载: {do.download_name}")
-                url = detail.url
-                # 正则表达式模式
-                pattern = r'http[s]://[^\s&]+'
-                # 查找所有匹配的https地址
-                matches = re.findall(pattern, url)
-                # 提取最后一个https地址
-                url = matches[-1] if matches else None
-                M3u8Downloader(name=do.download_name,
-                               url=url,
-                               dist_path=do.download_path,
-                               callback=self.callback,
-                               callback_data=do,
-                               max_workers=50 // Config.download_thread()
-                               )
-
+            logger.info(f"开始下载: {do.download_name}")
+            stop_event = threading.Event()
+            dr = M3u8Downloader(name=do.download_name,
+                                url=detail.url,
+                                dist_path=do.download_path,
+                                callback=self.callback,
+                                callback_obj=do,
+                                max_workers=50 // Config.download_thread(),
+                                stop_event=stop_event)
+            dr.start()
+            self._list.append({
+                "stop_event": stop_event,
+                "dr": dr,
+                "do": do
+            })
         except Exception as e:
-            logger.error(e)
+            logger.exception(e)
             do.state = DownloadState.FAILED
             do.error = str(e)
             self.update_state(do)
@@ -89,21 +87,22 @@ class DownloadServer(object):
     def async_run(self):
         threading.Thread(target=self.run, daemon=True).start()
 
-    def callback(self, state: str, msg, progress: int, do: DownloadDO):
-        logger.info("回调: {}-{}", msg, progress)
-        if state == "error":
-            logger.error(msg)
-            do.state = DownloadState.FAILED
-            do.error = msg
-        if state == "finish":
-            do.error = None
-            do.progress = progress
-            do.state = DownloadState.SUCCESS
-        if state == "start":
-            do.progress = progress
-            do.state = DownloadState.DOWNLOADING
-        if self.is_alive(do.download_id):
-            self.update_state(do)
+    def callback(self, cd: CallbackData):
+        logger.info("回调: {}-{}", cd.msg, cd.progress)
+        if cd.status == CallbackState.FAILED:
+            logger.error(cd.msg)
+            # cd.obj.state = DownloadState.FAILED
+            cd.obj.state = DownloadState.UNDOWNLOAD
+            cd.obj.error = cd.msg
+        if cd.status == CallbackState.FINISH:
+            cd.obj.error = None
+            cd.obj.progress = cd.progress
+            cd.obj.state = DownloadState.SUCCESS
+        if cd.status in [CallbackState.START, CallbackState.DOWNLOADING]:
+            cd.obj.progress = cd.progress
+            cd.obj.state = DownloadState.DOWNLOADING
+        if self.is_alive(cd.obj.download_id):
+            self.update_state(cd.obj)
         else:
             logger.info("任务不存在")
             return False
@@ -127,18 +126,23 @@ class DownloadServer(object):
                 {"state": DownloadState.UNDOWNLOAD})
             session.commit()
 
-    def clear(self, ds):
+    def delete(self, do):
         """清除下载中的任务"""
-        for d in ds:
-            for i in self._list.get_list():
-                if d.download_id == i.download_id:
-                    logger.info("清除下载中的任务: " + d.download_name)
-                    i.__stop__ = True
+        for dic in self._list.get_list():
+            i = dic["do"]
+            dr: M3u8Downloader = dic["dr"]
+            stop_event = dic["stop_event"]
+            if do.download_id == i.download_id:
+                logger.info("删除下载中的任务: " + do.download_name)
+                stop_event.set()
 
     def is_alive(self, download_id):
-        for i in self._list.get_list():
-            if download_id == i.download_id and i.__stop__:
-                return False
+        for dic in self._list.get_list():
+            i = dic["do"]
+            dr: M3u8Downloader = dic["dr"]
+            stop_event = dic["stop_event"]
+            if download_id == i.download_id:
+                return stop_event.is_set()
         return True
 
 

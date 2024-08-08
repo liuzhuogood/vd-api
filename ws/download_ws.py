@@ -49,8 +49,6 @@ class DownloadWS(socketio.Namespace):
                     session.delete(d)
                 deleted_count = len(ds)
                 session.commit()
-            # 通知下载器
-            self.ds.clear(ds_copy)
 
         self.emit("message", data=success(data=data, msg=f"清除{deleted_count}条记录"))
         self.emit("list", data=success())

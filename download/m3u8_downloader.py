@@ -3,12 +3,14 @@ import logging
 import os
 import platform
 import re
+import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-
-import requests
 import urllib3
 from loguru import logger
+from retry import retry
+
+from common.requests_session import RequestsSession
 
 
 def make_sum():
@@ -18,71 +20,81 @@ def make_sum():
         ts_num += 1
 
 
-class M3u8Downloader:
-    """
-    :param name: 保存m3u8的文件名 如"index"
-    :param max_workers: 多线程最大线程数
-    :param num_retries: 重试次数
-    :param base64_key: base64编码的字符串
-    """
+class RetryException(Exception):
+    pass
 
-    def __init__(self, name, url, dist_path, max_workers=20, num_retries=10, base64_key=None, callback=None,
-                 callback_data=None):
+
+class CallbackState:
+    START = 0
+    DOWNLOADING = 10
+    PAUSED = 11
+    FINISH = 20
+    FAILED = 30
+
+
+class CallbackData:
+    def __init__(self, status: int, msg: str, progress: float, obj):
+        self.status = status
+        self.msg = msg
+        self.progress = progress
+        self.obj = obj
+
+
+class M3u8Downloader:
+
+    def __init__(self, name,
+                 url,
+                 dist_m3u8_server,
+                 dist_path,
+                 max_workers=20,
+                 base64_key=None,
+                 callback=None,
+                 callback_obj=None,
+                 stop_event=None):
         self._url = url
+        self.dist_m3u8_server = dist_m3u8_server
         self._name = name
         self._max_workers = max_workers
-        self._num_retries = num_retries
         self._file_path = os.path.join(dist_path, self._name)
         self._front_url = None
         self._ts_url_list = []
         self._success_sum = 0
         self._ts_sum = 0
         self._key = base64.b64decode(base64_key.encode()) if base64_key else None
-        self._headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) \
-        AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36'}
         self.ts_name_map = {}
         self.callback = callback
-        self.callback_data = callback_data
-        self.stop = False
+        self.callback_obj = callback_obj
+        self.session = RequestsSession()
+        self.stop_event = stop_event
+        self.dist_path = dist_path
 
         urllib3.disable_warnings()
-        self.get_m3u8_info(self._url, self._num_retries)
+
+    def start(self):
+        self.get_m3u8_info()
         print('Downloading: %s' % self._name, 'Save path: %s' % self._file_path, sep='\n')
         with ThreadPoolExecutor(self._max_workers) as pool:
             for k, ts_url in enumerate(self._ts_url_list):
-                name = os.path.join(self._file_path, str(k)) + ".ts"
-                pool.submit(self.download_ts, ts_url, name, self._num_retries)
+                name = os.path.join(self._file_path, str(k).rjust(5, '0')) + ".ts"
+                pool.submit(self.download_ts, ts_url, name)
         # 等待线程池完成
         pool.shutdown(wait=True)
-        if self.stop:
-            logger.info("下载中断")
-            return
         if self._success_sum >= self._ts_sum - 1 and self._success_sum > 0:
             try:
-                logger.info(f"下载完成,开始合并")
-                self.output_mp4(dist_path, self._name)
                 if self.callback:
-                    self.callback("finish", "下载完成", 100, self.callback_data)
+                    self.callback(CallbackData(CallbackState.FINISH, "下载完成", 100, self.callback_obj))
+                logger.info(f"下载完成,开始合并")
+                self.output_mp4(self.dist_path, self._name)
+
             except Exception as e:
                 logging.exception(e)
         else:
             if self.callback:
-                self.callback("error", "下载失败", 0, self.callback_data)
+                self.callback(CallbackData(CallbackState.FAILED, "下载失败", 0, self.callback_obj))
 
-    def requests_get(self, url, num_retries):
-        try:
-            with requests.get(url, timeout=(5, 30), verify=False, headers=self._headers) as res:
-                return res
-        except Exception as e:
-            print(e)
-            if num_retries > 0:
-                return self.requests_get(url, num_retries - 1)
-
-    def get_m3u8_info(self, m3u8_url, num_retries):
-        """
-        获取m3u8信息
-        """
-        res = self.requests_get(m3u8_url, num_retries)
+    @retry(Exception, tries=5, delay=1)
+    def get_m3u8_info(self):
+        res = self.session.get(self._url, timeout=(5, 60), verify=False)
         assert res.status_code == 200, res.text
         if res:
             self._front_url = res.url.split(res.request.path_url)[0]
@@ -98,7 +110,7 @@ class M3u8Downloader:
                         self._url = self._front_url + line
                     else:
                         self._url = self._url.rsplit("/", 1)[0] + '/' + line
-                self.get_m3u8_info(self._url, self._num_retries)
+                self.get_m3u8_info(self._url)
             else:
                 m3u8_text_str = res.text
                 if "button" not in m3u8_text_str:
@@ -131,57 +143,51 @@ class M3u8Downloader:
                     self._ts_url_list.append(self._front_url + line)
                 else:
                     self._ts_url_list.append(self._url.rsplit("/", 1)[0] + '/' + line)
-                new_m3u8_str += (os.path.join(self._file_path, str(next(ts))) + '.ts\n')
+                new_m3u8_str += self.dist_m3u8_server + "/" + (
+                        os.path.join(os.path.basename(self._file_path), str(next(ts))).rjust(5, '0') + '.ts\n')
         self._ts_sum = next(ts)
+        # 写入.m3u8文件
         with open(self._file_path + '.m3u8', "wb") as f:
             if platform.system() == 'Windows':
                 f.write(new_m3u8_str.encode('gbk'))
             else:
                 f.write(new_m3u8_str.encode('utf-8'))
 
-    def download_ts(self, ts_url, name, num_retries):
+    @retry(Exception, tries=10, delay=1)
+    def download_ts(self, ts_url, name):
         """
         下载 .ts 文件
         """
-        if self.stop:
-            logger.info("下载中断")
-            return
         ts_url = ts_url.split('\n')[0]
-        try:
-            if not os.path.exists(name):
-                with requests.get(ts_url, stream=True, timeout=(5, 60), verify=False, headers=self._headers) as res:
-                    if res.status_code == 200:
-                        with open(name, "wb") as ts:
-                            for chunk in res.iter_content(chunk_size=1024):
-                                if chunk:
-                                    ts.write(chunk)
-                        self._success_sum += 1
-                        self.ts_name_map[ts_url] = name
-                        sum_ = (100 * self._success_sum // self._ts_sum // 4)
-                        sys.stdout.write('\r[%-25s](%d/%d)' % ("*" * sum_, self._success_sum, self._ts_sum))
-                        sys.stdout.flush()
+        if not os.path.exists(name):
+            with self.session.get(ts_url, stream=True, timeout=(5, 60), verify=False) as res:
+                if res.status_code == 200:
+                    with open(name + "_tmp", "wb+") as ts:
+                        for chunk in res.iter_content(chunk_size=1024):
+                            if chunk:
+                                ts.write(chunk)
+                    os.rename(name + "_tmp", name)
+                    self._success_sum += 1
+                    self.ts_name_map[ts_url] = name
+                    sum_ = (100 * self._success_sum // self._ts_sum // 4)
+                    sys.stdout.write('\r[%-25s](%d/%d)' % ("*" * sum_, self._success_sum, self._ts_sum))
+                    sys.stdout.flush()
 
-                    else:
-                        self.download_ts(ts_url, name, num_retries - 1)
-                        return
-            else:
-                self._success_sum += 1
-                self.ts_name_map[ts_url] = name
+                else:
+                    if os.path.exists(name):
+                        os.remove(name)
+                    raise RetryException(f"下载ts文件失败: {ts_url}")
+        else:
+            self._success_sum += 1
+            self.ts_name_map[ts_url] = name
 
-            # callback
-            if self.callback and (self._success_sum % 5 == 0 or self._success_sum == self._ts_sum):
-                self.stop = not self.callback("start",
-                                              "",
-                                              round(float(self._success_sum / self._ts_sum) * 100, 2)
-                                              , self.callback_data)
+        if self.callback and (self._success_sum % 5 == 0 or self._success_sum == self._ts_sum):
+            self.callback(CallbackData(CallbackState.DOWNLOADING, f"下载进度: {self._success_sum}/{self._ts_sum}",
+                                       round(float(self._success_sum / self._ts_sum) * 100, 2),
+                                       self.callback_obj))
 
-        except Exception as e:
-            if os.path.exists(name):
-                os.remove(name)
-            if num_retries > 0:
-                self.download_ts(ts_url, name, num_retries - 1)
-
-    def download_key(self, key_line, num_retries):
+    @retry(Exception, tries=5, delay=1)
+    def download_key(self, key_line):
         """
         下载key文件
         """
@@ -198,17 +204,14 @@ class M3u8Downloader:
         else:
             true_key_url = self._url.rsplit("/", 1)[0] + '/' + may_key_url
         try:
-            with requests.get(true_key_url, timeout=(5, 30), verify=False, headers=self._headers) as res:
+            with self.session.get(true_key_url, timeout=(5, 30), verify=False) as res:
                 with open(os.path.join(self._file_path, 'key'), 'wb') as f:
                     f.write(res.content)
             return f'{key_line.split(mid_part)[0]}URI="./{self._name}/key"{key_line.split(mid_part)[-1]}'
         except Exception as e:
-            print(e)
             if os.path.exists(os.path.join(self._file_path, 'key')):
                 os.remove(os.path.join(self._file_path, 'key'))
-            print("加密视频,无法加载key,揭秘失败")
-            if num_retries > 0:
-                self.download_key(key_line, num_retries - 1)
+            raise RetryException(f"下载key文件失败: {true_key_url}")
 
     def output_mp4(self, dist_path, main_name):
         """
@@ -224,6 +227,17 @@ class M3u8Downloader:
         logger.info(cmd)
         self.png_flag()
         os.system(cmd)
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                print(output.strip())
+                # 回调进度
+                last_line = output.strip().split('\r')[-1]
+                self.callback(CallbackData(CallbackState.DOWNLOADING, last_line, None, self.callback_obj))
+
         if not os.path.exists(out_name_outing):
             raise Exception("not foumd mp4")
         cmd = f"mv '{out_name_outing}' '{out_name}'"
