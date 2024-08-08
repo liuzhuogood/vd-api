@@ -24,6 +24,7 @@ class DownloadServer(object):
         self.executor = ThreadPoolExecutor(max_workers=10)
         self._list = ThreadSafeList()
         self.emit_callback = callback
+        self.lock = threading.Lock()
 
     def scan_db(self) -> DownloadDO:
         """扫描数据库"""
@@ -41,27 +42,29 @@ class DownloadServer(object):
 
     def submit(self, do: DownloadDO):
         try:
-            logger.info("提交任务: " + do.download_name)
+            with self.lock:
+                logger.info("提交任务: " + do.download_name)
 
-            do.state = DownloadState.DOWNLOADING
-            self.update_state(CallbackData(obj=do))
-            detail: VodDetailModel = do.vod_detail
-            logger.info(f"开始下载: {do.download_name}")
-            stop_event = threading.Event()
-            dr = M3u8Downloader(name=do.download_name,
-                                url=detail.url,
-                                dist_path=do.download_path,
-                                callback=self.callback,
-                                callback_obj=do,
-                                max_workers=20 // Config.download_thread(),
-                                stop_event=stop_event,
-                                cache_path=os.path.join(Config.download_root_path(), ".vdd_cache", str(do.download_id)))
-            dr.start()
-            self._list.append({
-                "stop_event": stop_event,
-                "dr": dr,
-                "do": do
-            })
+                do.state = DownloadState.DOWNLOADING
+                self.update_state(CallbackData(obj=do))
+                detail: VodDetailModel = do.vod_detail
+                logger.info(f"开始下载: {do.download_name}")
+                stop_event = threading.Event()
+                dr = M3u8Downloader(name=do.download_name,
+                                    url=detail.url,
+                                    dist_path=do.download_path,
+                                    callback=self.callback,
+                                    callback_obj=do,
+                                    max_workers=20 // Config.download_thread(),
+                                    stop_event=stop_event,
+                                    cache_path=os.path.join(Config.download_root_path(), ".vdd_cache",
+                                                            str(do.download_id)))
+                dr.start()
+                self._list.append({
+                    "stop_event": stop_event,
+                    "dr": dr,
+                    "do": do
+                })
         except Exception as e:
             logger.exception(e)
             do.state = DownloadState.FAILED
@@ -139,7 +142,6 @@ class DownloadServer(object):
         """清除下载中的任务"""
         for dic in self._list.get_list():
             i = dic["do"]
-            dr: M3u8Downloader = dic["dr"]
             stop_event = dic["stop_event"]
             if do.download_id == i.download_id:
                 logger.info("删除下载中的任务: " + do.download_name)
@@ -148,7 +150,6 @@ class DownloadServer(object):
     def is_alive(self, download_id):
         for dic in self._list.get_list():
             i = dic["do"]
-            dr: M3u8Downloader = dic["dr"]
             stop_event = dic["stop_event"]
             if download_id == i.download_id:
                 return stop_event.is_set()

@@ -1,6 +1,6 @@
 {
     "DOWNLOAD_DIR": "./data",
-    "DOWNLOAD_THREAD": "4",
+    "DOWNLOAD_THREAD": "2",
     "DOWNLOAD_MODE": "系统默认",
     "HTTP_PROXY": "",
     "PROXY_AUTH": "1",
