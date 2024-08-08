@@ -2,7 +2,6 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from download.m3u8_helper import M3u8Helper
 from loguru import logger
 
 from base.db import DbSession
@@ -88,7 +87,7 @@ class DownloadServer(object):
         threading.Thread(target=self.run, daemon=True).start()
 
     def callback(self, cd: CallbackData):
-        logger.info("回调: {}-{}", cd.msg, cd.progress)
+        logger.info("回调: {}-{}-{}", cd.speed_str, cd.msg, cd.progress)
         if cd.status == CallbackState.FAILED:
             logger.error(cd.msg)
             # cd.obj.state = DownloadState.FAILED

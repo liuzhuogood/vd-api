@@ -5,6 +5,8 @@ import platform
 import re
 import subprocess
 import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 import urllib3
 from loguru import logger
@@ -33,10 +35,12 @@ class CallbackState:
 
 
 class CallbackData:
-    def __init__(self, status: int, msg: str, progress: float, obj):
+    def __init__(self, status: int, msg: str, progress: float, speed: float, speed_str: str, obj):
         self.status = status
         self.msg = msg
         self.progress = progress
+        self.speed = speed
+        self.speed_str = speed_str
         self.obj = obj
 
 
@@ -44,8 +48,8 @@ class M3u8Downloader:
 
     def __init__(self, name,
                  url,
-                 dist_m3u8_server,
                  dist_path,
+                 dist_m3u8_server='http://127.0.0.1:18001',
                  max_workers=20,
                  base64_key=None,
                  callback=None,
@@ -68,11 +72,20 @@ class M3u8Downloader:
         self.stop_event = stop_event
         self.dist_path = dist_path
 
+        # 下载速度统计
+        self.total_bytes = 0
+        self.lock = threading.Lock()
+        self.start_time = None
+        self.speed = 0
+        self.speed_str = "0 KB/s"
+
         urllib3.disable_warnings()
 
     def start(self):
         self.get_m3u8_info()
-        print('Downloading: %s' % self._name, 'Save path: %s' % self._file_path, sep='\n')
+        self.start_time = time.time()
+        threading.Thread(target=self.calculate_speed, daemon=True).start()
+
         with ThreadPoolExecutor(self._max_workers) as pool:
             for k, ts_url in enumerate(self._ts_url_list):
                 name = os.path.join(self._file_path, str(k).rjust(5, '0')) + ".ts"
@@ -82,7 +95,12 @@ class M3u8Downloader:
         if self._success_sum >= self._ts_sum - 1 and self._success_sum > 0:
             try:
                 if self.callback:
-                    self.callback(CallbackData(CallbackState.FINISH, "下载完成", 100, self.callback_obj))
+                    self.callback(CallbackData(
+                        status=CallbackState.FINISH,
+                        msg="下载完成", progress=100,
+                        speed=self.speed,
+                        speed_str=self.speed_str,
+                        obj=self.callback_obj))
                 logger.info(f"下载完成,开始合并")
                 self.output_mp4(self.dist_path, self._name)
 
@@ -90,7 +108,24 @@ class M3u8Downloader:
                 logging.exception(e)
         else:
             if self.callback:
-                self.callback(CallbackData(CallbackState.FAILED, "下载失败", 0, self.callback_obj))
+                self.callback(CallbackData(
+                    status=CallbackState.FAILED,
+                    msg="下载失败",
+                    progress=0,
+                    speed=self.speed,
+                    speed_str=self.speed_str,
+                    obj=self.callback_obj))
+
+    def calculate_speed(self):
+        while True:
+            time.sleep(1)
+            with self.lock:
+                elapsed_time = time.time() - self.start_time
+                self.speed = self.total_bytes / elapsed_time
+                if self.speed > 1024:
+                    self.speed_str = f"{self.speed / 1024 / 1024:.2f} MB/s"
+                else:
+                    self.speed_str = f"{self.speed / 1024:.2f} KB/s"
 
     @retry(Exception, tries=5, delay=1)
     def get_m3u8_info(self):
@@ -159,6 +194,7 @@ class M3u8Downloader:
         下载 .ts 文件
         """
         ts_url = ts_url.split('\n')[0]
+        total_bytes = 0
         if not os.path.exists(name):
             with self.session.get(ts_url, stream=True, timeout=(5, 60), verify=False) as res:
                 if res.status_code == 200:
@@ -166,6 +202,10 @@ class M3u8Downloader:
                         for chunk in res.iter_content(chunk_size=1024):
                             if chunk:
                                 ts.write(chunk)
+                                total_bytes += len(chunk)
+                                with self.lock:
+                                    self.total_bytes += len(chunk)
+
                     os.rename(name + "_tmp", name)
                     self._success_sum += 1
                     self.ts_name_map[ts_url] = name
@@ -182,9 +222,13 @@ class M3u8Downloader:
             self.ts_name_map[ts_url] = name
 
         if self.callback and (self._success_sum % 5 == 0 or self._success_sum == self._ts_sum):
-            self.callback(CallbackData(CallbackState.DOWNLOADING, f"下载进度: {self._success_sum}/{self._ts_sum}",
-                                       round(float(self._success_sum / self._ts_sum) * 100, 2),
-                                       self.callback_obj))
+            self.callback(CallbackData(
+                status=CallbackState.DOWNLOADING,
+                msg=f"下载进度: {self._success_sum}/{self._ts_sum}",
+                progress=round(float(self._success_sum / self._ts_sum) * 100, 2),
+                speed=self.speed,
+                speed_str=self.speed_str,
+                obj=self.callback_obj))
 
     @retry(Exception, tries=5, delay=1)
     def download_key(self, key_line):
@@ -223,7 +267,7 @@ class M3u8Downloader:
         os.makedirs(f"{os.path.join(dist_path, main_name)}/", exist_ok=True)
         # cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8' -acodec \
         # copy -vcodec copy -f mp4 '{out_name}'"
-        cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v libx264  -threads 6 -preset ultrafast  '{out_name_outing}'"
+        cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c copy '{out_name_outing}'"
         logger.info(cmd)
         self.png_flag()
         os.system(cmd)
@@ -236,7 +280,13 @@ class M3u8Downloader:
                 print(output.strip())
                 # 回调进度
                 last_line = output.strip().split('\r')[-1]
-                self.callback(CallbackData(CallbackState.DOWNLOADING, last_line, None, self.callback_obj))
+                self.callback(CallbackData(
+                    status=CallbackState.DOWNLOADING,
+                    msg=last_line,
+                    progress=0,
+                    speed=0,
+                    speed_str="--",
+                    obj=self.callback_obj))
 
         if not os.path.exists(out_name_outing):
             raise Exception("not foumd mp4")
