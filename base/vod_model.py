@@ -10,6 +10,9 @@ class VodDetailModel(BaseModel):
     title: Optional[str] = Field(..., title='标题', description="")
     checked: bool = Field(False, title='是否选中', description="用于判断是否选中")
     downloaded: bool = Field(False, title='是否已下载', description="用于判断是否已下载")
+    api_name: Optional[str] = Field(None, title='接口', description="")
+    api: Optional[str] = Field(None, title='接口', description="")
+    wd: Optional[str] = Field(None, title='接口', description="")
 
     def __repr__(self):
         return self.title
@@ -115,4 +118,6 @@ class VodResult(BaseModel):
     """搜索的结果"""
     vms: list[VodModel] = Field([], title='视频列表', description="")
     api_name: Optional[str] = Field(None, title='接口', description="")
+    api: Optional[str] = Field(None, title='接口', description="")
+    wd: Optional[str] = Field(None, title='接口', description="")
     play_url: Optional[str] = Field(None, title='接口', description="")

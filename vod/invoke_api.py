@@ -13,7 +13,10 @@ class InvokeAPI(BaseInvoke):
 
     @retry(Exception, tries=2, delay=1)
     def search(self, wd: str) -> VodResult:
-        vr = VodResult(api_name=self.api["name"], play_url=self.api.get("playUrl", None))
+        vr = VodResult(api_name=self.api["name"],
+                       api=self.api["api"],
+                       wd=wd,
+                       play_url=self.api.get("playUrl", None))
         try:
             res = self.session.get(self.api["api"], timeout=(3, 10), params={
                 "wd": wd,
