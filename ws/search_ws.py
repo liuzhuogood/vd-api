@@ -65,7 +65,6 @@ class SearchWS(socketio.Namespace):
         with db_session() as session:
             session.add_all(rows)
             session.commit()
-        ws.download.ds.async_run()
         self.emit("list", data=success(), namespace="/download")
         return success()
 

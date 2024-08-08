@@ -75,9 +75,6 @@ class DownloadServer(object):
                     row: DownloadDO = self.scan_db()
                     if row:
                         self.executor.submit(self.submit, row)
-                    else:
-                        logger.info("没有数据可下载")
-                        break
             except Exception as e:
                 logger.error(e)
             finally:
