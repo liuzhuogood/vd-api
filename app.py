@@ -17,7 +17,7 @@ sio.register_namespace(ws.download)
 sio.register_namespace(ws.setting)
 app = Flask(__name__, static_folder='ui', static_url_path='/')
 app.wsgi_app = socketio.WSGIApp(sio, app.wsgi_app)
-logger.add('../logs/app.log', rotation="00:00", retention=timedelta(days=3), level="DEBUG")
+logger.add('./app.log', rotation="00:00", retention=timedelta(days=3), level="DEBUG")
 
 
 @app.route('/', methods=['GET'])
@@ -26,12 +26,12 @@ def index():
 
 
 @app.route('/<file>.m3u8', methods=['GET'])
-def index(file):
+def m3u8(file):
     return app.send_static_file('index.html')
 
 
 @app.route('/<ts>.ts', methods=['GET'])
-def index(ts):
+def ts(ts):
     return app.send_static_file('index.html')
 
 
