@@ -25,6 +25,16 @@ def index():
     return app.send_static_file('index.html')
 
 
+@app.route('/<file>.m3u8', methods=['GET'])
+def index(file):
+    return app.send_static_file('index.html')
+
+
+@app.route('/<ts>.ts', methods=['GET'])
+def index(ts):
+    return app.send_static_file('index.html')
+
+
 @app.route('/hot/image', methods=['GET'])
 def hot_image():
     cover_url = base64.b64decode(request.args.get('cover')).decode()
