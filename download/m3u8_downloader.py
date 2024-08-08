@@ -4,11 +4,11 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+
 import urllib3
 from loguru import logger
 from retry import retry
@@ -50,16 +50,18 @@ class M3u8Downloader:
 
     def __init__(self, name,
                  url,
+                 cache_path,
                  dist_path,
                  max_workers=20,
                  base64_key=None,
                  callback=None,
                  callback_obj=None,
                  stop_event=None):
+        self.cache_path = cache_path
         self._url = url
         self._name = name
         self._max_workers = max_workers
-        self._file_path = os.path.join(dist_path, self._name)
+        self._file_path = os.path.join(cache_path, self._name)
         self._front_url = None
         self._ts_url_list = []
         self._success_sum = 0
@@ -278,15 +280,15 @@ class M3u8Downloader:
         合并.ts文件，输出mp4格式视频，需要ffmpeg
         """
         mp4 = f"{os.path.basename(self._file_path)}.mp4"
-        out_name_outing = f"{os.path.join(dist_path, main_name, os.path.basename(self._file_path))}.outing.mp4"
+        out_name_outing = f"{self._file_path}.outing.mp4"
         out_name = os.path.join(os.path.dirname(dist_path), mp4)
-        os.makedirs(f"{os.path.join(dist_path, main_name)}/", exist_ok=True)
+        os.makedirs(dist_path, exist_ok=True)
         if os.path.exists(out_name_outing):
             os.remove(out_name_outing)
         # cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8' -acodec \
         # copy -vcodec copy -f mp4 '{out_name}'"
         # cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v libx264  -threads 6 -preset ultrafast  '{out_name_outing}'"
-        cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v copy -preset ultrafast '{out_name_outing}'"
+        cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v copy '{out_name_outing}'"
         logger.info(cmd)
         self.png_flag()
         os.system(cmd)
@@ -314,6 +316,6 @@ class M3u8Downloader:
         print("png delete")
 
     def clear(self):
-        path = os.path.dirname(self._file_path)
+        path = self._file_path
         if os.path.exists(path):
             shutil.rmtree(path, ignore_errors=True)

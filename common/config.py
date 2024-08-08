@@ -30,7 +30,7 @@ class Config:
 
     @staticmethod
     def download_root_path():
-        return os.getenv("DOWNLOAD_ROOT_PATH", default_data_path)
+        return os.path.abspath(os.getenv("DOWNLOAD_ROOT_PATH", default_data_path))
 
     @staticmethod
     def download_thread():

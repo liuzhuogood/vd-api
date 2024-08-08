@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -52,8 +53,9 @@ class DownloadServer(object):
                                 dist_path=do.download_path,
                                 callback=self.callback,
                                 callback_obj=do,
-                                max_workers=50 // Config.download_thread(),
-                                stop_event=stop_event)
+                                max_workers=20 // Config.download_thread(),
+                                stop_event=stop_event,
+                                cache_path=os.path.join(Config.download_root_path(), ".vdd_cache"))
             dr.start()
             self._list.append({
                 "stop_event": stop_event,

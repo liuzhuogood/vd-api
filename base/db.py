@@ -7,7 +7,7 @@ from common.config import Config
 from base.db_do import *
 
 # 创建引擎
-engine = create_engine(Config.database_uri(), echo=True, pool_size=5, pool_recycle=60, max_overflow=5)
+engine = create_engine(Config.database_uri(), echo=False, pool_size=5, pool_recycle=60, max_overflow=5)
 # 绑定引擎
 DbSession = sessionmaker(bind=engine, autoflush=False)
 # 创建数据库链接池，直接使用session即可为当前线程拿出一个链接对象conn
