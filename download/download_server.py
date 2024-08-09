@@ -43,7 +43,6 @@ class DownloadServer(object):
     def submit(self, do: DownloadDO):
         try:
 
-            logger.info("提交任务: " + do.download_name)
             detail: VodDetailModel = do.vod_detail
             logger.info(f"开始下载: {do.download_name}")
             stop_event = threading.Event()
@@ -83,7 +82,7 @@ class DownloadServer(object):
                         if row:
                             row.state = DownloadState.DOWNLOADING
                             self.update_state(CallbackData(obj=row))
-                            logger.info("开始下载: " + row.download_name)
+                            logger.info("提交任务: " + row.download_name)
                             self.executor.submit(self.submit, row)
             except Exception as e:
                 logger.error(e)
