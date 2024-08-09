@@ -129,6 +129,8 @@ class DownloadServer(object):
         with DbSession() as session:
             session.query(DownloadDO).filter(DownloadDO.state == DownloadState.DOWNLOADING).update(
                 {"state": DownloadState.UNDOWNLOAD})
+            session.query(DownloadDO).filter(DownloadDO.state == DownloadState.MERGEING).update(
+                {"state": DownloadState.UNDOWNLOAD})
             session.commit()
 
     def delete(self, do):
