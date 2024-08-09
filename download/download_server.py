@@ -110,12 +110,7 @@ class DownloadServer(object):
         if cd.status in [CallbackState.START, CallbackState.DOWNLOADING]:
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.DOWNLOADING
-        if self.is_alive(cd.obj.download_id):
-            self.update_state(cd)
-        else:
-            logger.info("任务不存在")
-            return False
-        return True
+        self.update_state(cd)
 
     def update_state(self, cd: CallbackData):
         do = cd.obj
