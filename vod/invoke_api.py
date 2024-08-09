@@ -18,7 +18,7 @@ class InvokeAPI(BaseInvoke):
                        wd=wd,
                        play_url=self.api.get("playUrl", None))
         try:
-            res = self.session.get(self.api["api"], timeout=(3, 10), params={
+            res = self.session.get(self.api["api"], timeout=(5, 10), params={
                 "wd": wd,
                 "ac": "detail"
             })
@@ -31,6 +31,11 @@ class InvokeAPI(BaseInvoke):
                 vm.url_details = self.parse_url_details(vm.vod_play_url, wd)
                 vr.vms.append(vm)
                 logger.info(f" {vr.api_name} ---> {vm.vod_play_url}")
+        except AssertionError as e:
+            self.logger.error(f"{vr.api_name} 解析异常:" + str(e))
+        except TimeoutError as e:
+            self.logger.error(f"{vr.api_name} 解析异常:" + str(e))
+            raise e
         except Exception as e:
             self.logger.error(f"{vr.api_name} 解析异常:" + str(e))
         return vr
