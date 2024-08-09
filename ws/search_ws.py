@@ -47,10 +47,6 @@ class SearchWS(socketio.Namespace):
         for download in downloads:
             vod: VodModel = VodModel(**download["vod"])
             detail: VodDetailModel = VodDetailModel(**download["detail"])
-            detail.api = download["search"]["api"]
-            detail.api_name = download["search"]["api_name"]
-            detail.wd = download["search"]["wd"]
-
             if detail.checked:
                 download_name = vod.vod_name + "-" + detail.title
                 download_path = Config().download_root_path()

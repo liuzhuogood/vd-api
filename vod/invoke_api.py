@@ -28,14 +28,14 @@ class InvokeAPI(BaseInvoke):
             li_list = res.json()["list"]
             for li in li_list:
                 vm = VodModel(**li)
-                vm.url_details = self.parse_url_details(vm.vod_play_url)
+                vm.url_details = self.parse_url_details(vm.vod_play_url, wd)
                 vr.vms.append(vm)
                 logger.info(f" {vr.api_name} ---> {vm.vod_play_url}")
         except Exception as e:
             self.logger.error(f"{vr.api_name} 解析异常:" + str(e))
         return vr
 
-    def parse_url_details(self, detail_url):
+    def parse_url_details(self, detail_url, wd):
         details = detail_url.split("#")
         rs = []
         for d in details:
@@ -45,7 +45,14 @@ class InvokeAPI(BaseInvoke):
                 url = dd[1]
             except Exception as e:
                 continue
-            rs.append(VodDetailModel(title=title, url=url))
+            rs.append(VodDetailModel(title=title,
+                                     url=url,
+                                     checked=False,
+                                     api_name=self.api["name"],
+                                     api=self.api["api"],
+                                     wd=wd,
+                                     play_url=self.api.get("playUrl", None)
+                                     ))
         return rs
 
     def test(self):
