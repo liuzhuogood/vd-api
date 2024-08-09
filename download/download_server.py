@@ -96,20 +96,20 @@ class DownloadServer(object):
         logger.info("回调: {}-{}-{}", cd.speed_str, cd.msg, cd.progress)
         if cd.status == CallbackState.FAILED:
             logger.error(cd.msg)
-            # cd.obj.state = DownloadState.FAILED
-            cd.obj.state = DownloadState.UNDOWNLOAD
+            cd.obj.state = DownloadState.FAILED
             cd.obj.error = cd.msg
         if cd.status == CallbackState.MERGEING:
             logger.error(cd.msg)
+            cd.obj.error = ""
             cd.obj.state = DownloadState.MERGEING
-            cd.obj.error = cd.msg
         if cd.status == CallbackState.FINISH:
-            cd.obj.error = None
+            cd.obj.error = ""
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.SUCCESS
         if cd.status in [CallbackState.START, CallbackState.DOWNLOADING]:
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.DOWNLOADING
+            cd.obj.error = ""
         self.update_state(cd)
 
     def update_state(self, cd: CallbackData):
