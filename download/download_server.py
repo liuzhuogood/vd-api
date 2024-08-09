@@ -68,9 +68,9 @@ class DownloadServer(object):
             self.update_state(CallbackData(obj=do))
         finally:
             for dic in self._list.get_list():
-                i = dic["do"]
-                if i.download_id == do.download_id:
-                    self._list.remove(do)
+                d = dic["do"]
+                if d.download_id == do.download_id:
+                    self._list.remove(dic)
                     break
 
     def run(self):
