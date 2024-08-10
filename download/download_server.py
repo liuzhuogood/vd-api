@@ -3,6 +3,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from db_hammer.util.ann import Except
 from loguru import logger
 
 from base.db import DbSession
@@ -67,11 +68,7 @@ class DownloadServer(object):
             do.error = str(e)
             self.update_state(CallbackData(obj=do))
         finally:
-            for dic in self._list.get_list():
-                d = dic["do"]
-                if d.download_id == do.download_id:
-                    self._list.remove(dic)
-                    break
+            pass
 
     def run(self):
         while True:
@@ -106,10 +103,12 @@ class DownloadServer(object):
             cd.obj.error = ""
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.SUCCESS
+            self.delete(cd)
         if cd.status in [CallbackState.START, CallbackState.DOWNLOADING]:
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.DOWNLOADING
             cd.obj.error = ""
+            self.delete(cd)
         self.update_state(cd)
 
     def update_state(self, cd: CallbackData):
@@ -133,14 +132,12 @@ class DownloadServer(object):
                 {"state": DownloadState.UNDOWNLOAD})
             session.commit()
 
-    def delete(self, do):
+    @Except
+    def delete(self, _obj: dict):
         """清除下载中的任务"""
-        for dic in self._list.get_list():
-            i = dic["do"]
-            stop_event = dic["stop_event"]
-            if do.download_id == i.download_id:
-                logger.info("删除下载中的任务: " + do.download_name)
-                stop_event.set()
+        stop_event = _obj["stop_event"]
+        self._list.remove(_obj)
+        stop_event.set()
 
     def is_alive(self, download_id):
         for dic in self._list.get_list():
