@@ -23,9 +23,9 @@ class DownloadServer(object):
     def __init__(self, callback=None):
         self.fail()
         self.executor = ThreadPoolExecutor(max_workers=10)
-        self._list = ThreadSafeList()
         self.emit_callback = callback
         self.lock = threading.Lock()
+        self.stop_event_map = {}
 
     def scan_db(self) -> DownloadDO:
         """扫描数据库"""
@@ -43,25 +43,18 @@ class DownloadServer(object):
 
     def submit(self, do: DownloadDO):
         try:
-
             detail: VodDetailModel = do.vod_detail
             logger.info(f"开始下载: {do.download_name}")
-            stop_event = threading.Event()
             dr = M3u8Downloader(name=do.download_name,
                                 url=detail.url,
                                 dist_path=do.download_path,
                                 callback=self.callback,
                                 callback_obj=do,
                                 max_workers=20 // Config.download_thread(),
-                                stop_event=stop_event,
+                                stop_event=self.stop_event_map.get(do.download_id),
                                 cache_path=os.path.join(Config.download_root_path(), ".vdd_cache",
                                                         str(do.download_id)))
             dr.start()
-            self._list.append({
-                "stop_event": stop_event,
-                "dr": dr,
-                "do": do
-            })
         except Exception as e:
             logger.exception(e)
             do.state = DownloadState.FAILED
@@ -74,13 +67,22 @@ class DownloadServer(object):
         while True:
             try:
                 with self.lock:
-                    if len(self._list) < Config.download_thread():
-                        row: DownloadDO = self.scan_db()
-                        if row:
-                            row.state = DownloadState.DOWNLOADING
-                            self.update_state(CallbackData(obj=row))
-                            logger.info("提交任务: " + row.download_name)
-                            self.executor.submit(self.submit, row)
+                    if not Config.LOADOK:
+                        continue
+                    if len(self.stop_event_map) >= Config.download_thread():
+                        logger.info("下载线程已满")
+                        continue
+                    row: DownloadDO = self.scan_db()
+                    if not row:
+                        logger.info("没有可以下载的任务")
+                        continue
+
+                    stop_event = threading.Event()
+                    self.stop_event_map[row.download_id] = stop_event
+                    row.state = DownloadState.DOWNLOADING
+                    self.update_state(CallbackData(obj=row))
+                    logger.info("提交任务: " + row.download_name)
+                    self.executor.submit(self.submit, row)
             except Exception as e:
                 logger.error(e)
             finally:
@@ -95,6 +97,7 @@ class DownloadServer(object):
             logger.error(cd.msg)
             cd.obj.state = DownloadState.FAILED
             cd.obj.error = cd.msg
+            self.delete(cd)
         if cd.status == CallbackState.MERGEING:
             logger.error(cd.msg)
             cd.obj.error = ""
@@ -108,7 +111,6 @@ class DownloadServer(object):
             cd.obj.progress = cd.progress
             cd.obj.state = DownloadState.DOWNLOADING
             cd.obj.error = ""
-            self.delete(cd)
         self.update_state(cd)
 
     def update_state(self, cd: CallbackData):
@@ -133,19 +135,12 @@ class DownloadServer(object):
             session.commit()
 
     @Except
-    def delete(self, _obj: dict):
+    def delete(self, cd: CallbackData):
         """清除下载中的任务"""
-        stop_event = _obj["stop_event"]
-        self._list.remove(_obj)
-        stop_event.set()
-
-    def is_alive(self, download_id):
-        for dic in self._list.get_list():
-            i = dic["do"]
-            stop_event = dic["stop_event"]
-            if download_id == i.download_id:
-                return stop_event.is_set()
-        return True
+        if cd.obj.download_id in self.stop_event_map:
+            stop_event = self.stop_event_map.get(cd.obj.download_id)
+            stop_event.set()
+            del self.stop_event_map[cd.obj.download_id]
 
 
 if __name__ == '__main__':

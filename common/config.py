@@ -10,6 +10,7 @@ default_data_path = os.path.join(root_dir, "data")
 
 
 class Config:
+    LOADOK = False
     VOD_LIST = []
     CUSTOMER_CONFIGS = [
         "DOWNLOAD_DIR",
@@ -58,6 +59,7 @@ class Config:
                 kvs = json.loads(f.read())
                 for k in kvs:
                     os.environ[str(k).upper()] = str(kvs[k])
+        Config.LOADOK = True
 
     @property
     def vod_api_list(self) -> list:

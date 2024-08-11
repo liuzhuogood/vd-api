@@ -41,11 +41,11 @@ class SearchWS(socketio.Namespace):
     def on_download(self, sid, data):
         """下载"""
         downloads = data["downloads"]
+        vod: VodModel = VodModel(**data["vod"])
         logger.info("开始下载:{}", downloads)
         rows = []
         # 每条记录里只有一条下载
         for download in downloads:
-            vod: VodModel = VodModel(**download["vod"])
             detail: VodDetailModel = VodDetailModel(**download["detail"])
             if detail.checked:
                 download_name = vod.vod_name + "-" + detail.title
@@ -63,7 +63,7 @@ class SearchWS(socketio.Namespace):
 
         # 添加下载记录
         with db_session() as session:
-            session.add_all(rows)
+            session.bulk_save_objects(rows)
             session.commit()
         self.emit("list", data=success(), namespace="/download")
         return success()
