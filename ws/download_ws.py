@@ -27,7 +27,7 @@ class DownloadWS(socketio.Namespace):
         with DbSession() as session:
             session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"]).delete()
             session.commit()
-        self.ds.stop_event_map[data["download_id"]].set()
+        self.ds.delete(CallbackData(obj=DownloadDO(**data)))
         self.emit("delete_event", data=success(data=data, msg="删除成功"))
 
     def on_clear(self, sid, data):
@@ -69,7 +69,7 @@ class DownloadWS(socketio.Namespace):
     def on_retry_download(self, sid, data):
         vod: VodModel = VodModel(**data["vod"])
         with DbSession() as session:
-            do: DownloadDO = session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"])
+            do: DownloadDO = session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"]).first()
         api = {
             "name": do.vod_detail["api_name"],
             "api": do.vod_detail["api"],
