@@ -3,12 +3,18 @@ from retry import retry
 
 from base.base_invoke import BaseInvoke
 from base.vod_model import *
+from vod.download_ext import show_downloaded_status
 
 
 class InvokeAPI(BaseInvoke):
 
     def __init__(self, api=None):
         super().__init__()
+        if api is None:
+            api = {
+                "name": "未知",
+                "api": "未知"
+            }
         self.api = api
 
     @retry(Exception, tries=2, delay=1)
@@ -29,6 +35,7 @@ class InvokeAPI(BaseInvoke):
             for li in li_list:
                 vm = VodModel(**li)
                 vm.url_details = self.parse_url_details(vm.vod_play_url, wd)
+                show_downloaded_status(vm.url_details)
                 vr.vms.append(vm)
                 logger.info(f" {vr.api_name} ---> {vm.vod_play_url}")
         except AssertionError as e:
