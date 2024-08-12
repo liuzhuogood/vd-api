@@ -11,6 +11,7 @@ class VodDetailModel(BaseModel):
     checked: bool = Field(False, title='是否选中', description="用于判断是否选中")
     downloaded: bool = Field(False, title='是否已下载', description="用于判断是否已下载")
     api_name: Optional[str] = Field(None, title='接口', description="")
+    play_url: Optional[str] = Field(None, title='接口', description="")
     api: Optional[str] = Field(None, title='接口', description="")
     wd: Optional[str] = Field(None, title='接口', description="")
 

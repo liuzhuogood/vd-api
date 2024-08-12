@@ -4,6 +4,7 @@ import os
 import platform
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -73,6 +74,7 @@ class M3u8Downloader:
         self.session = RequestsSession()
         self.stop_event = stop_event
         self.dist_path = dist_path
+        self.process = None  # type: subprocess
 
         # 下载速度统计
         self.total_bytes = 0
@@ -127,14 +129,14 @@ class M3u8Downloader:
             if self.callback:
                 self.callback(CallbackData(
                     status=CallbackState.FAILED,
-                    msg="下载失败",
+                    msg="请尝试下载其他资源站点",
                     progress=0,
                     speed=self.speed,
                     speed_str=self.speed_str,
                     obj=self.callback_obj))
 
     def calculate_speed(self):
-        while True:
+        while not self.stop_event.is_set():
             time.sleep(1)
             with self.lock:
                 elapsed_time = time.time() - self.start_time
@@ -146,6 +148,8 @@ class M3u8Downloader:
 
     @retry(Exception, tries=5, delay=1)
     def get_m3u8_info(self):
+        if self.stop_event.is_set():
+            return
         res = self.session.get(self._url, timeout=(5, 60), verify=False)
         assert res.status_code == 200, res.text
         if res:
@@ -211,6 +215,8 @@ class M3u8Downloader:
         """
         下载 .ts 文件
         """
+        if self.stop_event.is_set():
+            return
         ts_url = ts_url.split('\n')[0]
         total_bytes = 0
         if not os.path.exists(name):
@@ -291,12 +297,28 @@ class M3u8Downloader:
         cmd = f"ffmpeg -allowed_extensions ALL -i '{self._file_path}.m3u8'  -c:v copy '{out_name_outing}'"
         logger.info(cmd)
         self.png_flag()
-        os.system(cmd)
+
+        thread = threading.Thread(target=self.run_command, args=(cmd,))
+        thread.start()
+
+        while not self.stop_event.is_set() and thread.is_alive():
+            time.sleep(1)
+        if self.stop_event.is_set():
+            self.process.terminate()
+            self.process.kill()
+            self.delete_file()
+            return
+
+        # os.system(cmd)
         if not os.path.exists(out_name_outing):
             raise Exception("not foumd mp4")
         cmd = f"mv '{out_name_outing}' '{out_name}'"
         logger.info(cmd)
         os.system(cmd)
+
+    def run_command(self, cmd):
+        self.process = subprocess.Popen(cmd, shell=True)
+        self.process.wait()
 
     def delete_file(self):
         file = os.listdir(self._file_path)
