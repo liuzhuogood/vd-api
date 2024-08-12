@@ -7,6 +7,10 @@
 * 请注意资源的合法性，如有侵权尽快删除，勿相信视频中任何广告！
 * 请注意资源的合法性，如有侵权尽快删除，勿相信视频中任何广告！
 
+<img src="https://ice.frostsky.com/2024/08/12/34dfc55eb3054cb36f2a3b23ff2384c0.png">
+<img src="https://ice.frostsky.com/2024/08/12/32ac2b4bc27be1b6306764a76cdaecea.png">
+<img src="https://ice.frostsky.com/2024/08/12/2a8c868c5a306ea943b4b260795b5c48.png">
+
 ### Docker Run
 
 ##### 运行
