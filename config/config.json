@@ -1,12 +1,12 @@
 {
-    "DOWNLOAD_DIR": "./data",
-    "DOWNLOAD_THREAD": "2",
+    "DOWNLOAD_DIR": "./download",
+    "DOWNLOAD_THREAD": "1",
     "DOWNLOAD_MODE": "系统默认",
     "HTTP_PROXY": "",
-    "PROXY_AUTH": "1",
+    "PROXY_AUTH": "0",
     "PROXY_USERNAME": "",
     "PROXY_PASSWORD": "",
-    "AUTO_UPDATE": "1",
+    "AUTO_UPDATE": "0",
     "SYSTEM_THEME": "深色主题",
     "PROXY_ENABLE": "0"
 }
