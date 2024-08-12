@@ -3,11 +3,13 @@ import os.path
 import socketio
 from loguru import logger
 
+from base.vod_model import VodModel
 from common.response import success
 from base.db import DbSession
 from base.db_do import DownloadDO, DownloadState
 from download.download_server import DownloadServer
 from download.m3u8_downloader import CallbackData
+from vod.invoke_api import InvokeAPI
 
 
 class DownloadWS(socketio.Namespace):
@@ -25,6 +27,7 @@ class DownloadWS(socketio.Namespace):
         with DbSession() as session:
             session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"]).delete()
             session.commit()
+        self.ds.stop_event_map[data["download_id"]].set()
         self.emit("delete_event", data=success(data=data, msg="删除成功"))
 
     def on_clear(self, sid, data):
@@ -62,3 +65,20 @@ class DownloadWS(socketio.Namespace):
             self.emit("download_event", data=success(data=data))
         except Exception as e:
             logger.error(e)
+
+    def on_retry_download(self, sid, data):
+        vod: VodModel = VodModel(**data["vod"])
+        with DbSession() as session:
+            do: DownloadDO = session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"])
+        api = {
+            "name": do.vod_detail["api_name"],
+            "api": do.vod_detail["api"],
+        }
+        invoke = InvokeAPI(api=api)
+        result = invoke.search(do.vod_detail["wd"])
+
+        # 找出匹配的结果，找不到就返回原来的结果
+        for vm in result.vms:
+            if vm.vod_id == do.vod_model["vod_id"]:
+                return success(data=vm)
+        return success(data=vod)
