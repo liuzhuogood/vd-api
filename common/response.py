@@ -2,9 +2,10 @@ from enum import Enum
 
 
 class StateCode(Enum):
-    SUCCESS = "200"
-    WARNING = "201"
-    ERROR = "501"
+    SUCCESS = 200
+    WARNING = 201
+    ERROR = 500
+    AUTH = 401
 
 
 def success(data=None, code=StateCode.SUCCESS.value, msg="操作成功"):

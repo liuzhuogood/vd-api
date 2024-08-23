@@ -4,6 +4,8 @@ services:
   vdd:
     image: liuzhuogood/vdd:latest
     container_name: vdd
+    environment:
+      - LOGIN_PASSWORD:123456
     ports:
       - "18001:18001"
     volumes:

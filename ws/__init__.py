@@ -1,3 +1,4 @@
+from ws.login_ws import LoginWS
 from ws.search_ws import SearchWS
 from ws.download_ws import DownloadWS
 from ws.setting_ws import SettingWS
@@ -6,3 +7,4 @@ from ws.setting_ws import SettingWS
 search = SearchWS("/search")
 download = DownloadWS("/download")
 setting = SettingWS("/setting")
+login = LoginWS("/login")

@@ -23,6 +23,7 @@ class Config:
         "PROXY_PASSWORD",
         "AUTO_UPDATE",
         "SYSTEM_THEME",
+        "LOGIN_PASSWORD",
     ]
 
     @staticmethod
@@ -36,6 +37,10 @@ class Config:
     @staticmethod
     def download_thread():
         return int(os.getenv("DOWNLOAD_THREAD", 1))
+
+    @staticmethod
+    def login_password():
+        return os.getenv("LOGIN_PASSWORD", '')
 
     @staticmethod
     def save(data):

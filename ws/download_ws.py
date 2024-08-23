@@ -7,6 +7,7 @@ from base.vod_model import VodModel
 from common.response import success
 from base.db import DbSession
 from base.db_do import DownloadDO, DownloadState
+from common.util import Authorization
 from download.download_server import DownloadServer
 from download.m3u8_downloader import CallbackData
 from vod.invoke_api import InvokeAPI
@@ -18,18 +19,22 @@ class DownloadWS(socketio.Namespace):
         self.ds = DownloadServer(callback=self.on_callback)
         self.ds.async_run()
 
+    @Authorization
     def on_list(self, sid, data):
         with DbSession() as session:
             rs: list[DownloadDO] = session.query(DownloadDO).order_by(DownloadDO.download_id.desc()).all()
             return success(data=rs)
 
+    @Authorization
     def on_delete(self, sid, data):
         with DbSession() as session:
             session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"]).delete()
             session.commit()
         self.ds.delete(CallbackData(obj=DownloadDO(**data)))
         self.emit("delete_event", data=success(data=data, msg="删除成功"))
+        return success()
 
+    @Authorization
     def on_clear(self, sid, data):
         tag = data["tag"]
         deleted_count = 0
@@ -56,6 +61,7 @@ class DownloadWS(socketio.Namespace):
 
         self.emit("message", data=success(data=data, msg=f"清除{deleted_count}条记录"))
         self.emit("list", data=success())
+        return success()
 
     def on_callback(self, cd: CallbackData):
         """其实是来自下载的线程回调"""
@@ -66,7 +72,8 @@ class DownloadWS(socketio.Namespace):
         except Exception as e:
             logger.error(e)
 
-    def on_retry_download(self, sid, data):
+    @Authorization
+    def on_retry(self, sid, data):
         vod: VodModel = VodModel(**data["vod"])
         with DbSession() as session:
             do: DownloadDO = session.query(DownloadDO).filter(DownloadDO.download_id == data["download_id"]).first()

@@ -1,6 +1,7 @@
 # coding=utf-8
 import base64
 from datetime import timedelta, datetime
+
 import socketio
 from flask import Flask, request, make_response
 from loguru import logger
@@ -15,6 +16,7 @@ sio = socketio.Server(cors_allowed_origins="*", json=CustomJSONEncoder)
 sio.register_namespace(ws.search)
 sio.register_namespace(ws.download)
 sio.register_namespace(ws.setting)
+sio.register_namespace(ws.login)
 app = Flask(__name__, static_folder='ui', static_url_path='/')
 app.wsgi_app = socketio.WSGIApp(sio, app.wsgi_app)
 logger.add('./app.log', rotation="00:00", retention=timedelta(days=3), level="DEBUG")
@@ -22,16 +24,6 @@ logger.add('./app.log', rotation="00:00", retention=timedelta(days=3), level="DE
 
 @app.route('/', methods=['GET'])
 def index():
-    return app.send_static_file('index.html')
-
-
-@app.route('/<file>.m3u8', methods=['GET'])
-def m3u8(file):
-    return app.send_static_file('index.html')
-
-
-@app.route('/<ts>.ts', methods=['GET'])
-def ts(ts):
     return app.send_static_file('index.html')
 
 

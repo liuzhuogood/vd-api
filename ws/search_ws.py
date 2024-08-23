@@ -11,6 +11,7 @@ from common.config import Config
 from base.db import db_session
 from base.db_do import DownloadDO, DownloadState
 from common.share import hot
+from common.util import Authorization
 from vod.invoke_api import InvokeAPI
 from base.vod_model import VodModel, VodDetailModel
 
@@ -29,6 +30,7 @@ class SearchWS(socketio.Namespace):
         # 通知前端
         self.emit("search_event", data=success(data=result.model_dump()))
 
+    @Authorization
     def on_search(self, sid, data):
         try:
             wd = data["wd"]
@@ -38,6 +40,7 @@ class SearchWS(socketio.Namespace):
             logger.exception(e)
             return error(msg=f"解析异常:{e}")
 
+    @Authorization
     def on_download(self, sid, data):
         """下载"""
         downloads = data["downloads"]
@@ -68,6 +71,7 @@ class SearchWS(socketio.Namespace):
         self.emit("list", data=success(), namespace="/download")
         return success()
 
+    @Authorization
     def on_test(self, sid, data):
         try:
             pass
@@ -76,6 +80,7 @@ class SearchWS(socketio.Namespace):
             return error(msg=f"解析异常:{e}")
         return success(data=data.model_dump())
 
+    @Authorization
     def on_hots(self, sid, data):
         try:
             return success(data=hot.hots)
