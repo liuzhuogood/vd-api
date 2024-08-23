@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 import urllib3
@@ -45,6 +46,11 @@ class CallbackData:
         self.speed = speed
         self.speed_str = speed_str
         self.obj = obj
+
+
+def get_duplicates(lst):
+    count = Counter(lst)
+    return [item for item, freq in count.items() if freq > 1]
 
 
 class M3u8Downloader:
@@ -87,6 +93,8 @@ class M3u8Downloader:
 
     def start(self):
         self.get_m3u8_info()
+        self.remove_duplicate_ts()
+
         self.start_time = time.time()
         threading.Thread(target=self.calculate_speed, daemon=True).start()
 
@@ -148,7 +156,7 @@ class M3u8Downloader:
 
     @retry(Exception, tries=5, delay=1)
     def get_m3u8_info(self):
-        if self.stop_event.is_set():
+        if self.stop_event and self.stop_event.is_set():
             return
         res = self.session.get(self._url, timeout=(5, 60), verify=False)
         assert res.status_code == 200, res.text
@@ -341,3 +349,25 @@ class M3u8Downloader:
         path = self._file_path
         if os.path.exists(path):
             shutil.rmtree(path, ignore_errors=True)
+
+    def remove_duplicate_ts(self):
+        """去广告"""
+        try:
+            duplicates = get_duplicates(self._ts_url_list)
+            for d in duplicates:
+                while d in self._ts_url_list:
+                    self._ts_url_list.remove(d)
+            for d in duplicates:
+                for t in self._ts_url_list:
+                    if d == t:
+                        self._ts_url_list.remove(t)
+        except:
+            pass
+
+
+if __name__ == '__main__':
+    M3u8Downloader(name="test",
+                   url="https://cdn.wlcdn99.com:777/SclntkdR/index.m3u8",
+                   cache_path="./test",
+                   dist_path="./test",
+                   ).start()
