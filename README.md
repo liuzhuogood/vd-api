@@ -11,7 +11,6 @@
 
 ## 计划
 - [ ] 增加网盘搜索资源
-- [ ] 增加网盘搜索资源
 - [ ] 增加BT、网盘资源下载对接（毕竟高质量资源在这）
 - [ ] 去广告配置(尽量去除视频中插入广告片段)
 - [x] 增加登录验证
@@ -37,7 +36,7 @@
 mkdir -p /opt/vdd/config
 mkdir -p /opt/vdd/data
 
-# LOGIN_PASSWORD 为访问密码，不设置时为免密
+# LOGIN_PASSWORD 为访问密码，不设置时为免密，可在设置中更新
 docker run -d --name vdd -p 18001:18001 -e LOGIN_PASSWORD=123456 -v /opt/vdd/config:/app/config -v /opt/vdd/data:/app/data liuzhuogood/vdd:latest
 
 
