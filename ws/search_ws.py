@@ -5,15 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 import socketio
 from loguru import logger
 
-import ws
-from common.response import success, error
-from common.config import Config
 from base.db import db_session
 from base.db_do import DownloadDO, DownloadState
+from base.vod_model import VodModel, VodDetailModel
+from common.config import Config
+from common.response import success, error
 from common.share import hot
 from common.util import Authorization
 from vod.invoke_api import InvokeAPI
-from base.vod_model import VodModel, VodDetailModel
 
 lock = threading.Lock()
 cwd = os.path.dirname(__file__)
