@@ -12,6 +12,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 import urllib3
+from db_hammer.util.ann import Except
 from loguru import logger
 from retry import retry
 
@@ -323,6 +324,12 @@ class M3u8Downloader:
         cmd = f"mv '{out_name_outing}' '{out_name}'"
         logger.info(cmd)
         os.system(cmd)
+        self.remove_emp_dir(out_name_outing)
+
+    @Except
+    def remove_emp_dir(self, out_name_outing):
+        if os.path.exists(os.path.dirname(out_name_outing)):
+            os.removedirs(os.path.dirname(out_name_outing))
 
     def run_command(self, cmd):
         self.process = subprocess.Popen(cmd, shell=True)
